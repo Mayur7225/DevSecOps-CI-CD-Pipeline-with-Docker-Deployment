@@ -6,7 +6,7 @@ pipeline {
     BRANCH = "main"
     IMAGE = "todo-devops-app"
     DOCKERHUB_USER = "mayur7225"
-    SONAR_SERVER = "Sonar"        // must match Configure System name
+    SONAR_SERVER = "Sonar"
   }
 
   options {
@@ -23,31 +23,28 @@ pipeline {
     }
 
     stage('Prepare') {
-       steps {
-         echo "Installing node modules using Docker Node"
-         sh '''
-            docker run --rm \
-              -v "$PWD":/app \
-              -w /app \
-              node:18-alpine \
-              sh -c "npm install"
-           '''
-        }
-      }
-
-    stage('Dependency Scan (npm audit)') {
       steps {
+        echo "Installing node modules using Docker Node"
         sh '''
-          docker run --rm -v "$PWD":/app -w /app node:18-alpine \
-            sh -c "npm audit || true"
-     '''
+          docker run --rm \
+            -v "$PWD":/app \
+            -w /app \
+            node:18-alpine \
+            sh -c "npm install"
+        '''
       }
     }
 
     stage('Dependency Scan (npm audit)') {
       steps {
-        echo "Running npm audit"
-        sh 'npm audit --audit-level=high || true'
+        echo "Running npm audit via Docker"
+        sh '''
+          docker run --rm \
+            -v "$PWD":/app \
+            -w /app \
+            node:18-alpine \
+            sh -c "npm audit || true"
+        '''
       }
     }
 
@@ -55,11 +52,11 @@ pipeline {
       steps {
         echo "Running Gitleaks (secret scan)"
         sh '''
-          # try to use local gitleaks if installed, otherwise use docker
           if command -v gitleaks >/dev/null 2>&1; then
             gitleaks detect --source . --exit-code 1 || true
           else
-            docker run --rm -v "$PWD":/code zricethezav/gitleaks:latest detect --source /code --exit-code 1 || true
+            docker run --rm -v "$PWD":/code zricethezav/gitleaks:latest \
+              detect --source /code --exit-code 1 || true
           fi
         '''
       }
@@ -67,12 +64,14 @@ pipeline {
 
     stage('Generate SBOM (Syft)') {
       steps {
-        echo "Generating SBOM with syft (docker fallback)"
+        echo "Generating SBOM with Syft"
         sh '''
           if command -v syft >/dev/null 2>&1; then
             syft packages-dir:. -o cyclonedx-json=sbom-cyclonedx.json || true
           else
-            docker run --rm -v "$PWD":/project anchore/syft:latest packages dir:/project -o cyclonedx-json=/project/sbom-cyclonedx.json || true
+            docker run --rm -v "$PWD":/project anchore/syft:latest \
+              packages dir:/project \
+              -o cyclonedx-json=/project/sbom-cyclonedx.json || true
           fi
         '''
         archiveArtifacts artifacts: 'sbom-cyclonedx.json', allowEmptyArchive: true
@@ -83,22 +82,19 @@ pipeline {
       steps {
         echo "Running SonarScanner via Docker image"
         withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_AUTH_TOKEN')]) {
-          // withSonarQubeEnv supplies SONAR_HOST_URL from configured Sonar server
           withSonarQubeEnv("${SONAR_SERVER}") {
             sh '''
-              # run sonar-scanner in docker to avoid installing scanner in Jenkins container
-              docker run --rm -v "$PWD":/usr/src -e SONAR_HOST_URL=$SONAR_HOST_URL -e SONAR_TOKEN=$SONAR_AUTH_TOKEN sonarsource/sonar-scanner-cli \
-                -Dsonar.projectKey=${IMAGE} \
+              docker run --rm \
+                -v "$PWD":/usr/src \
+                -e SONAR_HOST_URL=$SONAR_HOST_URL \
+                -e SONAR_TOKEN=$SONAR_AUTH_TOKEN \
+                sonarsource/sonar-scanner-cli \
+                -Dsonar.projectKey=todo-devops-app \
                 -Dsonar.sources=/usr/src \
-                -Dsonar.login=$SONAR_AUTH_TOKEN \
+                -Dsonar.login=$SONAR_TOKEN \
                 -Dsonar.host.url=$SONAR_HOST_URL
             '''
           }
-        }
-      }
-      post {
-        always {
-          echo "Check Sonar dashboard for analysis results."
         }
       }
     }
@@ -106,7 +102,6 @@ pipeline {
     stage('Quality Gate') {
       steps {
         echo "Waiting for SonarQube Quality Gate..."
-        // abortPipeline false so pipeline continues even if quality gate fails - adjust if you want to fail
         timeout(time: 2, unit: 'MINUTES') {
           waitForQualityGate abortPipeline: false
         }
@@ -123,15 +118,14 @@ pipeline {
     stage('Container Scan - Trivy') {
       steps {
         echo "Running Trivy image scan"
-        "Installing Node modules using Docker Node image"
-    sh '''
-      docker run --rm -v "$PWD":/app -w /app node:18-alpine \
-        sh -c "npm install"
-    '''sh '''
+        sh '''
           if command -v trivy >/dev/null 2>&1; then
             trivy image --severity HIGH,CRITICAL --exit-code 1 ${IMAGE}:latest || true
           else
-            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest image --severity HIGH,CRITICAL --exit-code 1 ${IMAGE}:latest || true
+            docker run --rm \
+              -v /var/run/docker.sock:/var/run/docker.sock \
+              aquasec/trivy:latest image --severity HIGH,CRITICAL \
+              --exit-code 1 ${IMAGE}:latest || true
           fi
         '''
       }
@@ -153,25 +147,26 @@ pipeline {
       steps {
         echo "Deploying with docker compose"
         sh '''
-          # ensure docker compose v2
           docker compose down || true
           docker compose pull || true
           docker compose up -d --build
         '''
       }
     }
-  } // stages
+
+  } // end stages
 
   post {
     success {
       echo "Pipeline SUCCESS ✅"
     }
     unstable {
-      echo "Pipeline UNSTABLE — check warnings"
+      echo "Pipeline UNSTABLE — Check warnings!"
     }
     failure {
-      echo "Pipeline FAILED ❌ Check console logs"
+      echo "Pipeline FAILED ❌ Check logs"
     }
   }
 }
+
 
