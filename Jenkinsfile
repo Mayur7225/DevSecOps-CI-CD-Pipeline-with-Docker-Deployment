@@ -23,15 +23,17 @@ pipeline {
     }
 
     stage('Prepare') {
-      steps {
-        echo "Installing Node modules using Docker Node image"
-        sh '''
-          docker run --rm -v "$PWD":/app -w /app node:18-alpine \
-            sh -c "npm install"
-        '''
-    
+       steps {
+         echo "Installing node modules using Docker Node"
+         sh '''
+            docker run --rm \
+              -v "$PWD":/app \
+              -w /app \
+              node:18-alpine \
+              sh -c "npm install"
+           '''
+        }
       }
-    }
 
     stage('Dependency Scan (npm audit)') {
       steps {
