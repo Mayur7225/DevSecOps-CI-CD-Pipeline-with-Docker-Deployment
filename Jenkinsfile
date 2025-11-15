@@ -24,28 +24,21 @@ pipeline {
 
     stage('Prepare') {
       steps {
-        echo "Installing node modules (ci)"
+        echo "Installing Node modules using Docker Node image"
         sh '''
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm install
-          fi
+          docker run --rm -v "$PWD":/app -w /app node:18-alpine \
+            sh -c "npm install"
         '''
+    
       }
     }
 
-    stage('SAST - ESLint') {
+    stage('Dependency Scan (npm audit)') {
       steps {
-        echo "Running ESLint"
         sh '''
-          if [ -f .eslintrc ] || [ -f .eslintrc.js ] || [ -f .eslintrc.json ]; then
-            npx eslint . --max-warnings=0 || true
-          else
-            npm i --no-audit --no-fund --no-package-lock eslint@8 -D || true
-            npx eslint . --max-warnings=0 || true
-          fi
-        '''
+          docker run --rm -v "$PWD":/app -w /app node:18-alpine \
+            sh -c "npm audit || true"
+     '''
       }
     }
 
@@ -128,7 +121,11 @@ pipeline {
     stage('Container Scan - Trivy') {
       steps {
         echo "Running Trivy image scan"
-        sh '''
+        "Installing Node modules using Docker Node image"
+    sh '''
+      docker run --rm -v "$PWD":/app -w /app node:18-alpine \
+        sh -c "npm install"
+    '''sh '''
           if command -v trivy >/dev/null 2>&1; then
             trivy image --severity HIGH,CRITICAL --exit-code 1 ${IMAGE}:latest || true
           else
