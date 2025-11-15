@@ -15,13 +15,6 @@ pipeline {
 
   stages {
 
-    stage('Checkout') {
-      steps {
-        echo "Cloning repo..."
-        git url: "${REPO_URL}", branch: "${BRANCH}"
-      }
-    }
-
     stage('Prepare') {
       steps {
         echo "Installing node modules using Docker Node"
