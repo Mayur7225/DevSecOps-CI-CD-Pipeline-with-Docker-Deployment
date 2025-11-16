@@ -3,7 +3,8 @@ pipeline {
 
     environment {
         REPO_URL = "https://github.com/Mayur7225/node-todo-cicd.git"
-        BRANCH = "main"
+        BRANCH   = "main"
+        IMAGE    = "mayur7225/node-todo:latest"
     }
 
     stages {
@@ -26,20 +27,20 @@ pipeline {
                 sh '''
                     cd source
                     docker run --rm \
-                        -v "$PWD":/app \
-                        -w /app \
-                        node:18-alpine \
-                        sh -c "npm install"
+                      -v "$PWD":/app \
+                      -w /app \
+                      node:18-alpine \
+                      sh -c "npm install"
                 '''
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                echo "Building Docker image"
+                echo "Building Docker Image"
                 sh '''
                     cd source
-                    docker build -t mayur7225/node-todo:latest .
+                    docker build -t ${IMAGE} .
                 '''
             }
         }
@@ -49,14 +50,14 @@ pipeline {
                 echo "Pushing Docker image"
                 sh '''
                     docker login -u "$DOCKER_USER" -p "$DOCKER_PASS"
-                    docker push mayur7225/node-todo:latest
+                    docker push ${IMAGE}
                 '''
             }
         }
 
         stage('Deploy') {
             steps {
-                echo "Deploying with Docker Compose"
+                echo "Deploying with docker compose"
                 sh '''
                     cd source
                     docker compose down || true
@@ -67,16 +68,11 @@ pipeline {
     }
 
     post {
-        success {
-            echo "PIPELINE SUCCESSFUL ✅"
-        }
         failure {
             echo "PIPELINE FAILED ❌"
         }
+        success {
+            echo "PIPELINE SUCCESSFUL ✅"
+        }
     }
 }
-
-
-       
-      
-
