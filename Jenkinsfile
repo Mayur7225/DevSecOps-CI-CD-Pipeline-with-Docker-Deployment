@@ -3,8 +3,7 @@ pipeline {
 
     environment {
         REPO_URL = "https://github.com/Mayur7225/node-todo-cicd.git"
-        BRANCH   = "main"
-        IMAGE    = "mayur7225/node-todo:latest"
+        DOCKER_CREDS = credentials('dockerhub')   // DockerHub credentials ID
     }
 
     stages {
@@ -14,7 +13,7 @@ pipeline {
                 echo "Cloning clean repo..."
                 sh '''
                     rm -rf source
-                    git clone -b ${BRANCH} ${REPO_URL} source
+                    git clone -b main ${REPO_URL} source
                     ls -l source
                 '''
             }
@@ -22,28 +21,25 @@ pipeline {
 
         stage('Install Node Modules') {
             steps {
-                 echo "Running npm install..."
+                echo "Running npm install..."
+                sh '''
+                    HOST_SOURCE="/var/lib/docker/volumes/jenkins_home/_data/workspace/${JOB_NAME}/source"
+                    echo "Using host source path: $HOST_SOURCE"
 
-                 sh '''
-                     HOST_SOURCE="/var/lib/docker/volumes/jenkins_home/_data/workspace/DevSecops-CICD/source"
-
-                     echo "Using host source path: $HOST_SOURCE"
- 
                     docker run --rm \
-                    -v "$HOST_SOURCE":/app \
-                    -w /app \
-                    node:18-alpine \
-                    sh -c "npm install"
+                      -v $HOST_SOURCE:/app \
+                      -w /app \
+                      node:18-alpine \
+                      sh -c "npm install"
                 '''
-    
-             }
+            }
         }
 
         stage('Build Docker Image') {
             steps {
                 echo "Building Docker Image..."
                 sh '''
-                    docker build -t ${IMAGE} source
+                    docker build -t mayur7225/node-todo:latest source
                 '''
             }
         }
@@ -51,16 +47,20 @@ pipeline {
         stage('Push to DockerHub') {
             steps {
                 echo "Pushing Docker image..."
+
                 sh '''
-                    echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                    docker push ${IMAGE}
+                    echo $DOCKER_CREDS_PSW | docker login \
+                      -u $DOCKER_CREDS_USR \
+                      --password-stdin
+
+                    docker push mayur7225/node-todo:latest
                 '''
             }
         }
 
         stage('Deploy') {
             steps {
-                echo "Deploying app with docker-compose..."
+                echo "Deploying with docker-compose..."
                 sh '''
                     cd source
                     docker compose down || true
