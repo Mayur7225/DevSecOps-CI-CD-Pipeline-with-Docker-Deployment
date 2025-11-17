@@ -22,16 +22,20 @@ pipeline {
 
         stage('Install Node Modules') {
             steps {
-                echo "Running npm install..."
-                sh '''
+                 echo "Running npm install..."
+
+                 sh '''
+                     HOST_SOURCE="/var/lib/docker/volumes/jenkins_home/_data/workspace/DevSecops-CICD/source"
+
+                     echo "Using host source path: $HOST_SOURCE"
+ 
                     docker run --rm \
-                      -u root \
-                      --privileged \
-                      -v "$PWD/source":/app \
-                      -w /app \
-                      node:18-alpine \
-                      sh -c "npm install --verbose"
-                  '''
+                    -v "$HOST_SOURCE":/app \
+                    -w /app \
+                    node:18-alpine \
+                    sh -c "npm install"
+                '''
+    
              }
         }
 
