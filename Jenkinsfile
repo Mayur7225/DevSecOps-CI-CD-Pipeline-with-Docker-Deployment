@@ -21,7 +21,7 @@ pipeline {
             steps {
                 sh """
                 docker run --rm \
-                -v ${WORKSPACE}:/app \
+                -v ${WORKSPACE}/source:/app \
                 -w /app \
                 node:18-alpine \
                 sh -c "npm install"
