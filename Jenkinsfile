@@ -30,6 +30,7 @@ pipeline {
                     docker run --rm \
                     -v \$(pwd):/app \
                     -w /app \
+                    --user root \
                     node:18-alpine \
                     sh -c "npm install"
                     """
