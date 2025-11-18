@@ -13,23 +13,29 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                   git branch: 'main' , url: 'https://github.com/Mayur7225/node-todo-cicd.git'
-             }
-          }
-
-
-        stage('Install Node Modules') {
-            steps {
-                sh """
-                docker run --rm \
-                -v ${WORKSPACE}:/app \
-                -w /app \
-                node:18-alpine \
-                sh -c "npm install"
-              """
+                dir('source') {
+                    deleteDir()
+                    git branch: 'main', url: 'https://github.com/Mayur7225/node-todo-cicd.git'
+                }
             }
         }
 
+        stage('Install Node Modules') {
+            steps {
+                dir('source') {
+                    sh """
+                    echo "PWD inside Jenkins = $(pwd)"
+                    ls -l
+
+                    docker run --rm \
+                    -v $(pwd):/app \
+                    -w /app \
+                    node:18-alpine \
+                    sh -c "npm install"
+                    """
+                }
+            }
+        }
 
         stage('SAST Scan - SonarQube') {
             steps {
