@@ -28,7 +28,7 @@ pipeline {
                     ls -l
 
                     docker run --rm \
-                    -v \$(pwd):/app \
+                    -v "$(pwd)"":/app \
                     -w /app \
                     --user root \
                     node:18-alpine \
