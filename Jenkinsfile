@@ -13,11 +13,7 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                sh """
-                   rm -rf source
-                   git clone -b main https://github.com/Mayur7225/node-todo-cicd.git source
-                   ls -l source
-               """
+                   git branch; 'main' , url: 'https://github.com/Mayur7225/node-todo-cicd.git'
              }
           }
 
@@ -26,7 +22,7 @@ pipeline {
             steps {
                 sh """
                 docker run --rm \
-                -v ${WORKSPACE}/source:/app \
+                -v ${WORKSPACE}:/app \
                 -w /app \
                 node:18-alpine \
                 sh -c "npm install"
