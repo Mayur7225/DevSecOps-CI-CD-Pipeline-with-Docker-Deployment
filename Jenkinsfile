@@ -13,9 +13,14 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/Mayur7225/node-todo-cicd.git'
-            }
-        }
+                sh """
+                   rm -rf source
+                   git clone -b main https://github.com/Mayur7225/node-todo-cicd.git source
+                   ls -l source
+               """
+             }
+          }
+
 
         stage('Install Node Modules') {
             steps {
