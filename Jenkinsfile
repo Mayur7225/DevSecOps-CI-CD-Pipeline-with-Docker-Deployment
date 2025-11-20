@@ -54,6 +54,7 @@ pipeline {
                       }
                    }
                 }
+             }
 
         stage('Secrets Scan - GitLeaks') {
             steps {
