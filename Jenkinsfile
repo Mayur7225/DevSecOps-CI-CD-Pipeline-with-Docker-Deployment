@@ -3,7 +3,7 @@ pipeline {
 
     tools {
         nodejs 'node18'
-        sonarscanner 'sonar-scanner'
+        sonarRunner 'sonar-scanner'
     }
 
     options {
@@ -42,7 +42,7 @@ pipeline {
             steps {
                 withSonarQubeEnv('sonarqube-server') {
                     sh """
-                        sonar-scanner \
+                        ${Ttool 'sonar-scanner'}/bin/sonar \
                         -Dsonar.projectKey=node-todo \
                         -Dsonar.sources=. \
                         -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
