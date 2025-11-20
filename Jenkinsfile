@@ -39,6 +39,7 @@ pipeline {
 
         stage('SAST Scan - SonarQube') {
             steps {
+                dir('source') {
                 withSonarQubeEnv('sonarqube-server') {
                     sh """
                         ${tool 'sonar-scanner'}/bin/sonar-scanner \
@@ -47,33 +48,39 @@ pipeline {
                         -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
                     """
                 }
+              }
             }
-        }
+          }
 
         stage('Secrets Scan - GitLeaks') {
             steps {
+               dir('source') {
                 sh """
                 docker run --rm -v \$(pwd):/scan zricethezav/gitleaks:latest detect --source=/scan --no-banner || true
                 """
-            }
+             }
+           }
         }
 
         stage('Dependency Scan - Trivy FS Scan') {
             steps {
+               dir('source') {
                 sh """
                 docker run --rm -v \$(pwd):/app aquasec/trivy fs --exit-code 1 --severity HIGH,CRITICAL /app || true
                 """
             }
-        }
-
+          } 
+       }
+    
         stage('Build Docker Image') {
             steps {
+                dir('source') {
                 sh """
                 docker build -t $DOCKER_IMAGE .
                 """
             }
         }
-
+    }
         stage('Image Scan - Trivy Image Scan') {
             steps {
                 sh """
@@ -96,6 +103,7 @@ pipeline {
 
         stage('Deploy') {
             steps {
+                dir('source') {
                 sh """
                 docker compose down || true
                 docker compose up -d
