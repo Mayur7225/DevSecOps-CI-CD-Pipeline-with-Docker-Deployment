@@ -42,8 +42,10 @@ pipeline {
             steps {
                 dir('source') {
                     withSonarQubeEnv('sonarqube-server') {
-                        sh """
-                            ${tool 'sonar-scanner'}/bin/sonar-scanner \
+                        script {
+                             def scannerHome = tool 'sonar-scanner'
+                             sh """
+                            ${sonar-scanner}/bin/sonar-scanner \
                             -Dsonar.projectKey=node-todo \
                             -Dsonar.sources=. \
                             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
