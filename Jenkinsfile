@@ -29,8 +29,6 @@ pipeline {
             steps {
                 dir('source') {
                     sh '''
-                        echo "PWD = $(pwd)"
-                        ls -l
                         echo "Installing Node Modules..."
                         npm install
                     '''
@@ -39,3 +37,92 @@ pipeline {
         }
 
         stage('SAST Scan - SonarQube') {
+            steps {
+                dir('source') {
+                    withSonarQubeEnv('sonarqube-server') {
+                        sh """
+                            \${tool 'sonar-scanner'}/bin/sonar-scanner \
+                            -Dsonar.projectKey=node-todo \
+                            -Dsonar.sources=. \
+                            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Secrets Scan - GitLeaks') {
+            steps {
+                dir('source') {
+                    sh '''
+                        docker run --rm -v $(pwd):/scan \
+                        zricethezav/gitleaks:latest detect --source=/scan --no-banner || true
+                    '''
+                }
+            }
+        }
+
+        stage('Dependency Scan - Trivy FS Scan') {
+            steps {
+                dir('source') {
+                    sh '''
+                        docker run --rm -v $(pwd):/app \
+                        aquasec/trivy fs --exit-code 1 --severity HIGH,CRITICAL /app || true
+                    '''
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                dir('source') {
+                    sh '''
+                        docker build -t ${DOCKER_IMAGE} .
+                    '''
+                }
+            }
+        }
+
+        stage('Image Scan - Trivy Image Scan') {
+            steps {
+                sh '''
+                    docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+                    aquasec/trivy image --exit-code 1 --severity HIGH,CRITICAL ${DOCKER_IMAGE} || true
+                '''
+            }
+        }
+
+        stage('Push to DockerHub') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'docker-creds',
+                    usernameVariable: 'USER',
+                    passwordVariable: 'PASS')]) {
+                    sh '''
+                        echo "$PASS" | docker login -u "$USER" --password-stdin
+                        docker push ${DOCKER_IMAGE}
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                dir('source') {
+                    sh '''
+                        docker compose down || true
+                        docker compose up -d
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "DevSecOps Pipeline Completed Successfully! 🎉"
+        }
+        failure {
+            echo "Pipeline Failed ❌"
+        }
+    }
+}
