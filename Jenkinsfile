@@ -3,7 +3,6 @@ pipeline {
 
     tools {
         nodejs 'node18'
-        // sonar scanner tool name should match Jenkins -> Global Tool Config
     }
 
     options {
@@ -43,25 +42,25 @@ pipeline {
                 dir('source') {
                     withSonarQubeEnv('sonarqube-server') {
                         script {
-                             def scanner = tool name: 'sonar-scanner'
-                             sh """
-                                 ${scanner}/bin/sonar-scanner \
-                                 -Dsonar.projectKey=node-todo \
-                                 -Dsonar.sources=. \
-                                 -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+                            def scanner = tool 'sonar-scanner'
+                            sh """
+                                ${scanner}/bin/sonar-scanner \
+                                -Dsonar.projectKey=node-todo \
+                                -Dsonar.sources=. \
+                                -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
                             """
-                         }
-                      }
-                   }
+                        }
+                    }
                 }
-             }
+            }
+        }
 
         stage('Secrets Scan - GitLeaks') {
             steps {
                 dir('source') {
                     sh """
-                        docker run --rm -v $(pwd):/scan zricethezav/gitleaks:latest \
-                        detect --source=/scan --no-banner || true
+                        docker run --rm -v $(pwd):/scan zricethezav/gitleaks:latest detect \
+                        --source=/scan --no-banner || true
                     """
                 }
             }
@@ -92,8 +91,7 @@ pipeline {
             steps {
                 sh """
                     docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-                    aquasec/trivy image --exit-code 1 --severity HIGH,CRITICAL \
-                    ${DOCKER_IMAGE} || true
+                    aquasec/trivy image --exit-code 1 --severity HIGH,CRITICAL ${DOCKER_IMAGE} || true
                 """
             }
         }
@@ -102,7 +100,7 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'docker-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
                     sh """
-                        echo "$PASS" | docker login -u "$USER" --password-stdin
+                        echo "${PASS}" | docker login -u "${USER}" --password-stdin
                         docker push ${DOCKER_IMAGE}
                     """
                 }
