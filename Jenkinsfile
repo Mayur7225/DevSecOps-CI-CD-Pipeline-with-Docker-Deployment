@@ -42,10 +42,10 @@ pipeline {
                 dir('source') {
                     withSonarQubeEnv('sonarqube-server') {
                         sh """
-                            \${tool 'sonar-scanner'}/bin/sonar-scanner \
-                            -Dsonar.projectKey=node-todo \
-                            -Dsonar.sources=. \
-                            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+                        \${tool 'sonar-scanner'}/bin/sonar-scanner \
+                        -Dsonar.projectKey=node-todo \
+                        -Dsonar.sources=. \
+                        -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
                         """
                     }
                 }
@@ -56,8 +56,7 @@ pipeline {
             steps {
                 dir('source') {
                     sh """
-                        docker run --rm -v $(pwd):/scan \
-                        zricethezav/gitleaks:latest detect --source=/scan --no-banner || true
+                    docker run --rm -v \$(pwd):/scan zricethezav/gitleaks:latest detect --source=/scan --no-banner || true
                     """
                 }
             }
@@ -67,8 +66,7 @@ pipeline {
             steps {
                 dir('source') {
                     sh """
-                        docker run --rm -v $(pwd):/app \
-                        aquasec/trivy fs --exit-code 1 --severity HIGH,CRITICAL /app || true
+                    docker run --rm -v \$(pwd):/app aquasec/trivy fs --exit-code 1 --severity HIGH,CRITICAL /app || true
                     """
                 }
             }
@@ -78,8 +76,7 @@ pipeline {
             steps {
                 dir('source') {
                     sh """
-                        echo "Building Docker image..."
-                        docker build -t $DOCKER_IMAGE .
+                    docker build -t \$DOCKER_IMAGE .
                     """
                 }
             }
@@ -88,8 +85,8 @@ pipeline {
         stage('Image Scan - Trivy Image Scan') {
             steps {
                 sh """
-                    docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-                    aquasec/trivy image --exit-code 1 --severity HIGH,CRITICAL $DOCKER_IMAGE || true
+                docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+                aquasec/trivy image --exit-code 1 --severity HIGH,CRITICAL \$DOCKER_IMAGE || true
                 """
             }
         }
@@ -98,8 +95,8 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'docker-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
                     sh """
-                        echo "$PASS" | docker login -u "$USER" --password-stdin
-                        docker push $DOCKER_IMAGE
+                    echo "$PASS" | docker login -u "$USER" --password-stdin
+                    docker push \$DOCKER_IMAGE
                     """
                 }
             }
@@ -109,8 +106,8 @@ pipeline {
             steps {
                 dir('source') {
                     sh """
-                        docker compose down || true
-                        docker compose up -d
+                    docker compose down || true
+                    docker compose up -d
                     """
                 }
             }
